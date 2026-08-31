@@ -525,7 +525,29 @@ export const initialPassiveAccounts: PassiveIncomeAccount[] = [
   { id: 'p_asm1', name: 'ASM (Amanah Saham Malaysia)', principalAmount: 58413.84, annualInterestRate: 4.76, monthlyReturns: { Jan: 0, Feb: 0, Mar: 0, Apr: 2781.61, May: 0, Jun: 0, Jul: 0, Aug: 0, Sep: 0, Oct: 0, Nov: 0, Dec: 0 }, category: 'ASNB' },
   { id: 'p_asm2', name: 'ASM 2 Wawasan', principalAmount: 33461.88, annualInterestRate: 4.75, monthlyReturns: { Jan: 0, Feb: 0, Mar: 0, Apr: 0, May: 0, Jun: 0, Jul: 0, Aug: 1589.44, Sep: 0, Oct: 0, Nov: 0, Dec: 0 }, category: 'ASNB' },
   { id: 'p_asm3', name: 'ASM 3 1Malaysia', principalAmount: 38202.49, annualInterestRate: 4.75, monthlyReturns: { Jan: 0, Feb: 0, Mar: 0, Apr: 0, May: 0, Jun: 0, Jul: 0, Aug: 0, Sep: 1814.62, Oct: 0, Nov: 0, Dec: 0 }, category: 'ASNB' },
-  { id: 'p_digibank', name: 'Digital Banks (RYT + TNG + Boost + Webull + MAE)', principalAmount: 30790.59, annualInterestRate: 3.40, monthlyReturns: { Jan: 88.01, Feb: 111.85, Mar: 52.97, Apr: 48.20, May: 51.86, Jun: 79.78, Jul: 87.24, Aug: 0, Sep: 0, Oct: 0, Nov: 0, Dec: 0 }, category: 'Digital Bank' },
+  {
+    id: 'p_digibank',
+    name: 'Digital Banks (RYT + TNG + Boost + Webull + MAE)',
+    principalAmount: 30790.59,
+    annualInterestRate: 3.40,
+    monthlyReturns: { Jan: 98.52, Feb: 111.85, Mar: 52.97, Apr: 48.20, May: 51.86, Jun: 79.78, Jul: 87.24, Aug: 0, Sep: 0, Oct: 0, Nov: 0, Dec: 0 },
+    monthlyCalcNotes: {
+      '2026': {
+        Jan: 'MAE: 66.5 - 54.5\nYi RYT: 9.48\nRYT: 64.91\nBoost: 48.83 - 36.7'
+      }
+    },
+    yearlyData: {
+      '2026': {
+        Jan: {
+          principal: 30790.59,
+          rate: 3.84,
+          returns: 98.52,
+          calcNotes: 'MAE: 66.5 - 54.5\nYi RYT: 9.48\nRYT: 64.91\nBoost: 48.83 - 36.7'
+        }
+      }
+    },
+    category: 'Digital Bank'
+  },
   { id: 'p_kdi', name: 'KDI Save (Kenanga Digital)', principalAmount: 23801.45, annualInterestRate: 3.99, monthlyReturns: { Jan: 0, Feb: 31.88, Mar: 78.52, Apr: 76.24, May: 79.03, Jun: 35.78, Jul: 0, Aug: 0, Sep: 0, Oct: 0, Nov: 0, Dec: 0 }, category: 'Money Market' },
   { id: 'p_versa', name: 'Versa Cash & Yield', principalAmount: 35006.79, annualInterestRate: 3.86, monthlyReturns: { Jan: 193.42, Feb: 157.74, Mar: 98.85, Apr: 97.62, May: 230.87, Jun: 122.78, Jul: 91.37, Aug: 0, Sep: 0, Oct: 0, Nov: 0, Dec: 0 }, category: 'Money Market' },
 ];

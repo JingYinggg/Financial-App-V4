@@ -104,12 +104,14 @@ export interface PassiveIncomeAccount {
   annualInterestRate: number; // e.g. 4.75, 3.4
   monthlyReturns: { [monthKey: string]: number };
   yearlyReturns?: { [year: string]: { [monthKey: string]: number } };
+  monthlyCalcNotes?: { [year: string]: { [monthKey: string]: string } };
   yearlyData?: {
     [year: string]: {
       [monthKey: string]: {
         principal?: number;
         rate?: number;
         returns?: number;
+        calcNotes?: string;
       };
     };
   };

@@ -139,6 +139,13 @@ interface WealthContextType {
     field: 'principal' | 'rate' | 'returns',
     value: number
   ) => void;
+  updatePassiveAccountCalcNotes: (
+    id: string,
+    year: number,
+    monthKey: string,
+    calcNotes: string,
+    evaluatedTotal?: number
+  ) => void;
   movePassiveAccount: (id: string, direction: 'up' | 'down') => void;
   deletePassiveAccount: (id: string) => void;
   includedPrincipalAccountIds: string[];
@@ -1246,14 +1253,24 @@ export const WealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           };
         }
       } else {
-        // 'rate' and 'returns' are individual standing (only affects the target month)
+        // 'rate' or 'returns'
         for (let i = 0; i < MONTHS.length; i++) {
           const m = MONTHS[i];
           const existing = currYear[m] ? { ...currYear[m] } : getExisting(m);
           if (i === targetMonthIdx) {
+            const updatedRate = field === 'rate' ? value : (existing.rate ?? 0);
+            const updatedReturns = field === 'returns' ? value : (existing.returns ?? 0);
+            
+            // Auto-calculate estimated principal if rate > 0 and returns > 0 (Monthly Interest = Principal * (Rate / 100) / 12 => Principal = Returns * 12 / (Rate / 100))
+            let calculatedPrincipal = existing.principal;
+            if (updatedRate > 0 && updatedReturns > 0) {
+              calculatedPrincipal = Math.round((updatedReturns * 12 / (updatedRate / 100)) * 100) / 100;
+            }
+
             newYearData[m] = {
               ...existing,
-              [field]: value
+              [field]: value,
+              principal: calculatedPrincipal
             };
           } else {
             newYearData[m] = currYear[m] ? { ...currYear[m] } : existing;
@@ -1280,6 +1297,78 @@ export const WealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           ? { ...p.monthlyReturns, [monthKey]: value }
           : p.monthlyReturns,
         yearlyReturns: updatedYearlyReturns,
+        yearlyData: updatedYearlyData
+      };
+    });
+
+    setPassiveAccounts(next);
+    syncToBackend({ passiveAccounts: next });
+  };
+
+  const updatePassiveAccountCalcNotes = (
+    id: string,
+    year: number,
+    monthKey: string,
+    calcNotes: string,
+    evaluatedTotal?: number
+  ) => {
+    const yKey = String(year);
+    const next = passiveAccounts.map(p => {
+      if (p.id !== id) return p;
+      const currYearly = p.yearlyData || {};
+      const currYear = currYearly[yKey] || {};
+      const existingMonth = currYear[monthKey] || {};
+
+      const finalReturns = evaluatedTotal !== undefined
+        ? evaluatedTotal
+        : (existingMonth.returns !== undefined
+            ? existingMonth.returns
+            : (p.yearlyReturns?.[yKey]?.[monthKey] ?? (year === 2026 ? p.monthlyReturns?.[monthKey] : 0) ?? 0));
+
+      const existingRate = existingMonth.rate !== undefined ? existingMonth.rate : (p.annualInterestRate || 0);
+      let calculatedPrincipal = existingMonth.principal !== undefined ? existingMonth.principal : (p.principalAmount || 0);
+      if (existingRate > 0 && finalReturns > 0) {
+        calculatedPrincipal = Math.round((finalReturns * 12 / (existingRate / 100)) * 100) / 100;
+      }
+
+      const updatedMonth = {
+        ...existingMonth,
+        calcNotes,
+        returns: finalReturns,
+        principal: calculatedPrincipal
+      };
+
+      const newYearData = {
+        ...currYear,
+        [monthKey]: updatedMonth
+      };
+
+      const updatedYearlyData = {
+        ...currYearly,
+        [yKey]: newYearData
+      };
+
+      const updatedYearlyReturns = { ...(p.yearlyReturns || {}) };
+      if (!updatedYearlyReturns[yKey]) {
+        updatedYearlyReturns[yKey] = { ...(p.monthlyReturns || {}) };
+      }
+      if (evaluatedTotal !== undefined) {
+        updatedYearlyReturns[yKey][monthKey] = evaluatedTotal;
+      }
+
+      const updatedMonthlyCalcNotes = { ...(p.monthlyCalcNotes || {}) };
+      if (!updatedMonthlyCalcNotes[yKey]) {
+        updatedMonthlyCalcNotes[yKey] = {};
+      }
+      updatedMonthlyCalcNotes[yKey][monthKey] = calcNotes;
+
+      return {
+        ...p,
+        monthlyReturns: evaluatedTotal !== undefined && year === 2026
+          ? { ...p.monthlyReturns, [monthKey]: evaluatedTotal }
+          : p.monthlyReturns,
+        yearlyReturns: updatedYearlyReturns,
+        monthlyCalcNotes: updatedMonthlyCalcNotes,
         yearlyData: updatedYearlyData
       };
     });
@@ -1452,6 +1541,7 @@ export const WealthProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         addPassiveAccount,
         updatePassiveAccount,
         updatePassiveAccountMonthData,
+        updatePassiveAccountCalcNotes,
         movePassiveAccount,
         deletePassiveAccount,
         includedPrincipalAccountIds,

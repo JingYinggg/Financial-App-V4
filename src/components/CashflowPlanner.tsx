@@ -30,6 +30,7 @@ import {
   CartesianGrid
 } from 'recharts';
 import { YearSelector } from './YearSelector';
+import { LedgerCalculatorModal } from './LedgerCalculatorModal';
 
 export const CashflowPlanner: React.FC = () => {
   const {
@@ -55,6 +56,7 @@ export const CashflowPlanner: React.FC = () => {
     deleteExpenseCategory,
     updatePassiveAccount,
     updatePassiveAccountMonthData,
+    updatePassiveAccountCalcNotes,
     movePassiveAccount,
     addPassiveAccount,
     deletePassiveAccount,
@@ -67,6 +69,18 @@ export const CashflowPlanner: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'cashflow' | 'passive'>('cashflow');
   const [selectedYear, setSelectedYear] = useState<number>(2026);
   const [availableYears, setAvailableYears] = useState<number[]>([2023, 2024, 2025, 2026]);
+
+  // Interactive Ledger Calculator State (No fx badges in table, opens mini calculator on click)
+  const [activeLedgerCalc, setActiveLedgerCalc] = useState<{
+    isOpen: boolean;
+    accountId: string;
+    accountName: string;
+    month: string;
+    year: number;
+    currency: string;
+    initialNotes: string;
+    initialValue: number;
+  } | null>(null);
 
   // Modals
   const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
@@ -537,21 +551,35 @@ export const CashflowPlanner: React.FC = () => {
     }
 
     const currentPrincipal = yearly?.principal !== undefined ? yearly.principal : defaultPrincipal;
+    const calcNotes = yearly?.calcNotes || item.monthlyCalcNotes?.[yrStr]?.[month] || '';
 
     if (yearly) {
+      const r = yearly.rate ?? item.annualInterestRate ?? 0;
+      const ret = yearly.returns ?? (item.yearlyReturns?.[yrStr]?.[month] ?? (year === 2026 ? item.monthlyReturns?.[month] : 0) ?? 0);
+      let pVal = currentPrincipal;
+      if (yearly.principal === undefined && r > 0 && ret > 0) {
+        pVal = Math.round((ret * 12 / (r / 100)) * 100) / 100;
+      }
       return {
-        principal: currentPrincipal,
-        rate: yearly.rate ?? item.annualInterestRate ?? 0,
-        returns: yearly.returns ?? (item.yearlyReturns?.[yrStr]?.[month] ?? (year === 2026 ? item.monthlyReturns?.[month] : 0) ?? 0),
+        principal: pVal,
+        rate: r,
+        returns: ret,
+        calcNotes,
         isStockAutoLinked: null
       };
     }
     const legacyYearlyRet = item.yearlyReturns?.[yrStr]?.[month];
     const ret = legacyYearlyRet !== undefined ? legacyYearlyRet : (year === 2026 ? item.monthlyReturns?.[month] || 0 : 0);
+    const r = item.annualInterestRate || 0;
+    let pVal = defaultPrincipal;
+    if (r > 0 && ret > 0 && !item.principalAmount) {
+      pVal = Math.round((ret * 12 / (r / 100)) * 100) / 100;
+    }
     return {
-      principal: defaultPrincipal,
-      rate: item.annualInterestRate || 0,
+      principal: pVal,
+      rate: r,
       returns: ret,
+      calcNotes,
       isStockAutoLinked: null
     };
   };
@@ -1377,6 +1405,7 @@ export const CashflowPlanner: React.FC = () => {
                 {passiveAccounts.map((account) => {
                   const rowSum = months.reduce((sum, m) => sum + getPassiveMonthData(account, selectedYear, m).returns, 0);
                   const { isMy, isUs } = checkStockAccountType(account);
+                  const isDigitalBankOrFreeCash = (account.id === 'p_digibank' || /digital bank|free cash/i.test(account.name)) && !/versa/i.test(account.name);
                   const isDragging = draggedPassiveId === account.id;
                   const isDragOver = dragOverPassiveId === account.id;
 
@@ -1400,34 +1429,41 @@ export const CashflowPlanner: React.FC = () => {
                       }`}
                     >
                       <div className="flex items-center justify-between flex-wrap gap-2">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          {/* Hidden/Subtle Drag Handle */}
-                          <div
-                            className="cursor-grab active:cursor-grabbing p-1 -ml-1 text-[#C2B8AA] hover:text-[#8F4E1D] opacity-40 group-hover:opacity-100 transition-opacity"
-                            title="Click and drag to reorder"
-                          >
-                            <GripVertical className="w-4 h-4" />
+                        <div className="flex flex-col gap-0.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {/* Hidden/Subtle Drag Handle */}
+                            <div
+                              className="cursor-grab active:cursor-grabbing p-1 -ml-1 text-[#C2B8AA] hover:text-[#8F4E1D] opacity-40 group-hover:opacity-100 transition-opacity"
+                              title="Click and drag to reorder"
+                            >
+                              <GripVertical className="w-4 h-4" />
+                            </div>
+                            <input
+                              type="text"
+                              value={account.name}
+                              onChange={e => updatePassiveAccount(account.id, { name: e.target.value })}
+                              className="font-bold text-sm text-[#2D2823] bg-transparent hover:bg-white focus:bg-white border border-transparent hover:border-[#E2DAD0] focus:border-[#8F4E1D] rounded-md px-2 py-0.5 focus:outline-none transition-all"
+                            />
+                            {isMy && (
+                              <span
+                                className="text-[10px] font-bold text-[#8F4E1D] bg-[#FAF0E6] px-2 py-0.5 rounded border border-[#EAD7C5] tracking-tight"
+                                title={`Principal auto-flows from Active MY Stock Portfolio (${formatRM(activeMyStockPrincipal)})`}
+                              >
+                                Auto: MY Stock Portfolio
+                              </span>
+                            )}
+                            {isUs && (
+                              <span
+                                className="text-[10px] font-bold text-[#3D633C] bg-[#EEF4EE] px-2 py-0.5 rounded border border-[#D5E3D5] tracking-tight"
+                                title={`Principal auto-flows from Active US / Overseas Stock Portfolio (${formatUSD(activeUsStockPrincipal)})`}
+                              >
+                                Auto: US Stock Portfolio
+                              </span>
+                            )}
                           </div>
-                          <input
-                            type="text"
-                            value={account.name}
-                            onChange={e => updatePassiveAccount(account.id, { name: e.target.value })}
-                            className="font-bold text-sm text-[#2D2823] bg-transparent hover:bg-white focus:bg-white border border-transparent hover:border-[#E2DAD0] focus:border-[#8F4E1D] rounded-md px-2 py-0.5 focus:outline-none transition-all"
-                          />
-                          {isMy && (
-                            <span
-                              className="text-[10px] font-bold text-[#8F4E1D] bg-[#FAF0E6] px-2 py-0.5 rounded border border-[#EAD7C5] tracking-tight"
-                              title={`Principal auto-flows from Active MY Stock Portfolio (${formatRM(activeMyStockPrincipal)})`}
-                            >
-                              Auto: MY Stock Portfolio
-                            </span>
-                          )}
-                          {isUs && (
-                            <span
-                              className="text-[10px] font-bold text-[#3D633C] bg-[#EEF4EE] px-2 py-0.5 rounded border border-[#D5E3D5] tracking-tight"
-                              title={`Principal auto-flows from Active US / Overseas Stock Portfolio (${formatUSD(activeUsStockPrincipal)})`}
-                            >
-                              Auto: US Stock Portfolio
+                          {isDigitalBankOrFreeCash && (
+                            <span className="text-[11px] text-[#7A7268] font-normal pl-6">
+                              Detailed entries & calculations available in Dividend ({isUs ? 'USD' : 'RM'}) row
                             </span>
                           )}
                         </div>
@@ -1548,28 +1584,68 @@ export const CashflowPlanner: React.FC = () => {
                               {months.map(m => {
                                 const monthData = getPassiveMonthData(account, selectedYear, m);
                                 const isAuto = Boolean(monthData.isStockAutoLinked);
+                                const hasNotes = Boolean(monthData.calcNotes && monthData.calcNotes.trim());
+                                const displayVal = monthData.returns || 0;
+
+                                if (isAuto) {
+                                  return (
+                                    <td key={m} className="py-0.5 px-1 text-right font-mono min-w-[85px]">
+                                      <input
+                                        type="number"
+                                        step="any"
+                                        value={monthData.returns || 0}
+                                        readOnly
+                                        title={`Auto-filled from Dividend Yield Tracker (${isUs ? formatUSD(monthData.returns) : formatRM(monthData.returns)})`}
+                                        className="w-full text-right py-1 px-1.5 text-xs rounded-lg focus:outline-none transition-all font-mono font-bold tabular-nums text-[#3D633C] bg-transparent cursor-default select-all"
+                                      />
+                                    </td>
+                                  );
+                                }
+
+                                if (isDigitalBankOrFreeCash) {
+                                  return (
+                                    <td key={m} className="py-0.5 px-1 text-right font-mono min-w-[85px]">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setActiveLedgerCalc({
+                                            isOpen: true,
+                                            accountId: account.id,
+                                            accountName: account.name,
+                                            month: m,
+                                            year: selectedYear,
+                                            currency: isUs ? 'USD' : 'RM',
+                                            initialNotes: monthData.calcNotes || '',
+                                            initialValue: displayVal
+                                          });
+                                        }}
+                                        title={
+                                          hasNotes
+                                            ? `Breakdown:\n${monthData.calcNotes}\n\nTotal: ${isUs ? formatUSD(displayVal) : formatRM(displayVal)}\n(Click to open mini calculator)`
+                                            : `Click to open mini calculator for ${m} ${selectedYear}`
+                                        }
+                                        className="w-full text-right py-1 px-1.5 text-xs rounded-lg transition-all font-mono font-bold tabular-nums flex items-center justify-end cursor-pointer bg-transparent text-[#3D633C] hover:bg-white hover:border-[#D5E3D5] border border-transparent focus:border-[#3D633C]"
+                                      >
+                                        <span className="truncate">
+                                          {displayVal !== 0 ? displayVal.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) : 0}
+                                        </span>
+                                      </button>
+                                    </td>
+                                  );
+                                }
+
+                                // Standard accounts like Versa Cash & Yield or ASB: direct numerical input, no calculator modal
                                 return (
                                   <td key={m} className="py-0.5 px-1 text-right font-mono min-w-[85px]">
                                     <input
                                       type="number"
                                       step="any"
                                       value={monthData.returns || 0}
-                                      readOnly={isAuto}
                                       onChange={e => {
-                                        if (isAuto) return;
                                         const v = parseFloat(e.target.value) || 0;
                                         updatePassiveAccountMonthData(account.id, selectedYear, m, 'returns', v);
                                       }}
-                                      title={
-                                        isAuto
-                                          ? `Auto-filled from Dividend Yield Tracker (${isUs ? formatUSD(monthData.returns) : formatRM(monthData.returns)})`
-                                          : undefined
-                                      }
-                                      className={`w-full text-right py-1 px-1.5 text-xs rounded-lg focus:outline-none transition-all font-mono font-bold tabular-nums text-[#3D633C] ${
-                                        isAuto
-                                          ? 'bg-transparent cursor-default select-all'
-                                          : 'bg-transparent hover:bg-white focus:bg-white border border-transparent hover:border-[#D5E3D5] focus:border-[#3D633C]'
-                                      }`}
+                                      className="w-full text-right py-1 px-1.5 text-xs rounded-lg focus:outline-none transition-all font-mono font-bold tabular-nums text-[#3D633C] bg-transparent hover:bg-white focus:bg-white border border-transparent hover:border-[#D5E3D5] focus:border-[#3D633C]"
                                     />
                                   </td>
                                 );
@@ -1885,6 +1961,29 @@ export const CashflowPlanner: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Interactive Ledger & Mini Calculator Modal */}
+      {activeLedgerCalc && activeLedgerCalc.isOpen && (
+        <LedgerCalculatorModal
+          isOpen={activeLedgerCalc.isOpen}
+          onClose={() => setActiveLedgerCalc(null)}
+          accountName={activeLedgerCalc.accountName}
+          month={activeLedgerCalc.month}
+          year={activeLedgerCalc.year}
+          currency={activeLedgerCalc.currency}
+          initialNotes={activeLedgerCalc.initialNotes}
+          initialValue={activeLedgerCalc.initialValue}
+          onSave={(notes, total) => {
+            updatePassiveAccountCalcNotes(
+              activeLedgerCalc.accountId,
+              activeLedgerCalc.year,
+              activeLedgerCalc.month,
+              notes,
+              total
+            );
+          }}
+        />
       )}
     </div>
   );
