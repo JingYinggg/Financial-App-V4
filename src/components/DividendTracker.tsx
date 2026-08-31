@@ -211,16 +211,6 @@ export const DividendTracker: React.FC = () => {
             }}
           />
         </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleOpenAddModal}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#8F4E1D] hover:bg-[#733E16] text-white font-bold text-xs rounded-xl shadow-xs transition-all"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Add Stock Payout</span>
-          </button>
-        </div>
       </div>
 
       {/* Year Metric Summary Bar */}
@@ -323,9 +313,13 @@ export const DividendTracker: React.FC = () => {
           <h3 className="font-extrabold text-[#2D2823] text-xs tracking-tight">
             Monthly Dividend Breakdown ({currentYearNum})
           </h3>
-          <span className="text-[11px] text-[#8C8379]">
-            Yield is calculated directly from stock portfolio valuations
-          </span>
+          <button
+            onClick={handleOpenAddModal}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#8F4E1D] hover:bg-[#733E16] text-white font-bold text-xs rounded-xl shadow-xs transition-all cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Add Stock Payout</span>
+          </button>
         </div>
 
         <div className="overflow-x-auto overflow-y-auto max-h-[65vh] no-scrollbar touch-scroll relative">

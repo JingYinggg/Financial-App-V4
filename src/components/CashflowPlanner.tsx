@@ -69,8 +69,8 @@ export const CashflowPlanner: React.FC = () => {
   const [availableYears, setAvailableYears] = useState<number[]>([2023, 2024, 2025, 2026]);
 
   // Modals
-  const [showAddIncomeModal, setShowAddIncomeModal] = useState(false);
-  const [showAddExpenseModal, setShowAddExpenseModal] = useState(false);
+  const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
+  const [addCategoryType, setAddCategoryType] = useState<'income' | 'expense'>('income');
   const [newCatName, setNewCatName] = useState('');
 
   // Drag-and-drop & sort states for Expenses
@@ -609,22 +609,17 @@ export const CashflowPlanner: React.FC = () => {
   const currentFireGoal = fireTargetMonthly || 2000;
   const passiveMilestonePercent = currentFireGoal > 0 ? Math.min(100, (monthlyPassiveAvg / currentFireGoal) * 100) : 0;
 
-  // Add Income
-  const handleAddIncome = (e: React.FormEvent) => {
+  // Add Inflow / Expense
+  const handleAddCategorySubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newCatName) return;
-    addIncomeCategory(newCatName);
+    if (!newCatName.trim()) return;
+    if (addCategoryType === 'income') {
+      addIncomeCategory(newCatName.trim());
+    } else {
+      addExpenseCategory(newCatName.trim());
+    }
     setNewCatName('');
-    setShowAddIncomeModal(false);
-  };
-
-  // Add Expense
-  const handleAddExpense = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newCatName) return;
-    addExpenseCategory(newCatName);
-    setNewCatName('');
-    setShowAddExpenseModal(false);
+    setShowAddCategoryModal(false);
   };
 
   // Add Passive Account directly without modal
@@ -879,20 +874,17 @@ export const CashflowPlanner: React.FC = () => {
                   INCOME STATEMENT ({selectedYear})
                 </h2>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setShowAddIncomeModal(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#3D633C] hover:bg-[#2F4D2E] text-white rounded-xl text-xs font-semibold transition-all shadow-xs cursor-pointer"
+                  onClick={() => {
+                    setAddCategoryType('income');
+                    setNewCatName('');
+                    setShowAddCategoryModal(true);
+                  }}
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#8F4E1D] hover:bg-[#733E16] text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  <span>Add Inflow Stream</span>
-                </button>
-                <button
-                  onClick={() => setShowAddExpenseModal(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#B54838] hover:bg-[#9E3E30] text-white rounded-xl text-xs font-semibold transition-all shadow-xs cursor-pointer"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Add Expense Item</span>
+                  <span>Add Inflow / Outflow</span>
                 </button>
               </div>
             </div>
@@ -1130,7 +1122,12 @@ export const CashflowPlanner: React.FC = () => {
               </div>
               <div className="h-72 w-full pt-1">
                 <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart data={multiYearSummary} margin={{ top: 10, right: 16, bottom: 0, left: 10 }}>
+                  <ComposedChart
+                    data={multiYearSummary}
+                    margin={{ top: 10, right: 16, bottom: 0, left: 10 }}
+                    barCategoryGap="28%"
+                    barGap={4}
+                  >
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#EAE3D6" />
                     <XAxis dataKey="year" stroke="#7A7268" fontSize={11} tickLine={false} />
                     <YAxis
@@ -1154,8 +1151,20 @@ export const CashflowPlanner: React.FC = () => {
                       verticalAlign="bottom"
                       wrapperStyle={{ paddingTop: '10px', fontSize: '11px' }}
                     />
-                    <Bar dataKey="revenue" fill="#3D633C" radius={[4, 4, 0, 0]} name="Annual Revenue" />
-                    <Bar dataKey="expense" fill="#B54838" radius={[4, 4, 0, 0]} name="Annual Outflow" />
+                    <Bar
+                      dataKey="revenue"
+                      fill="#3D633C"
+                      radius={[4, 4, 0, 0]}
+                      maxBarSize={60}
+                      name="Annual Revenue"
+                    />
+                    <Bar
+                      dataKey="expense"
+                      fill="#B54838"
+                      radius={[4, 4, 0, 0]}
+                      maxBarSize={60}
+                      name="Annual Outflow"
+                    />
                   </ComposedChart>
                 </ResponsiveContainer>
               </div>
@@ -1645,83 +1654,86 @@ export const CashflowPlanner: React.FC = () => {
         </div>
       )}
 
-      {/* ADD INFLOW MODAL */}
-      {showAddIncomeModal && (
+      {/* ADD INFLOW / OUTFLOW UNIFIED MODAL */}
+      {showAddCategoryModal && (
         <div className="fixed inset-0 bg-[#2D2823]/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150">
-          <div className="bg-[#FAF8F5] rounded-2xl border border-[#EAE3D6] p-5 max-w-xs w-full shadow-2xl space-y-4">
+          <div className="bg-[#FAF8F5] rounded-2xl border border-[#EAE3D6] p-5 max-w-sm w-full shadow-2xl space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-[#2D2823]">Add Inflow Stream</h3>
-              <button onClick={() => setShowAddIncomeModal(false)} className="text-[#8C8379] hover:text-[#2D2823] p-1">
+              <h3 className="text-sm font-bold text-[#2D2823]">Add Inflow / Outflow</h3>
+              <button 
+                onClick={() => setShowAddCategoryModal(false)} 
+                className="text-[#8C8379] hover:text-[#2D2823] p-1 rounded-lg hover:bg-[#EFE8DD] transition-colors cursor-pointer"
+              >
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <form onSubmit={handleAddIncome} className="space-y-3">
-              <div>
-                <label className="block text-xs font-bold text-[#5C544C] mb-1">Stream Name</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Freelance Consulting"
-                  value={newCatName}
-                  onChange={e => setNewCatName(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-white border border-[#E2DAD0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#3D633C] text-[#2D2823]"
-                  autoFocus
-                />
-              </div>
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowAddIncomeModal(false)}
-                  className="px-3 py-1.5 text-xs font-bold text-[#6B635A] hover:bg-[#EFE8DD] rounded-xl"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-1.5 text-xs font-bold bg-[#3D633C] text-white hover:bg-[#315030] rounded-xl shadow-xs"
-                >
-                  Save
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
-      {/* ADD EXPENSE MODAL */}
-      {showAddExpenseModal && (
-        <div className="fixed inset-0 bg-[#2D2823]/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150">
-          <div className="bg-[#FAF8F5] rounded-2xl border border-[#EAE3D6] p-5 max-w-xs w-full shadow-2xl space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-[#2D2823]">Add Expense Item</h3>
-              <button onClick={() => setShowAddExpenseModal(false)} className="text-[#8C8379] hover:text-[#2D2823] p-1">
-                <X className="w-4 h-4" />
+            {/* Type selector toggle */}
+            <div className="flex items-center p-1 bg-[#EFE8DD] rounded-xl gap-1">
+              <button
+                type="button"
+                onClick={() => setAddCategoryType('income')}
+                className={`flex-1 py-1.5 px-3 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  addCategoryType === 'income'
+                    ? 'bg-[#3D633C] text-white shadow-xs'
+                    : 'text-[#6B635A] hover:text-[#2D2823]'
+                }`}
+              >
+                <span className="w-2 h-2 rounded-full bg-emerald-300"></span>
+                <span>Inflow Stream</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setAddCategoryType('expense')}
+                className={`flex-1 py-1.5 px-3 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  addCategoryType === 'expense'
+                    ? 'bg-[#B54838] text-white shadow-xs'
+                    : 'text-[#6B635A] hover:text-[#2D2823]'
+                }`}
+              >
+                <span className="w-2 h-2 rounded-full bg-red-300"></span>
+                <span>Outflow Stream</span>
               </button>
             </div>
-            <form onSubmit={handleAddExpense} className="space-y-3">
+
+            <form onSubmit={handleAddCategorySubmit} className="space-y-3">
               <div>
-                <label className="block text-xs font-bold text-[#5C544C] mb-1">Expense Name</label>
+                <label className="block text-xs font-bold text-[#5C544C] mb-1">
+                  {addCategoryType === 'income' ? 'Inflow Stream Name' : 'Outflow Stream Name'}
+                </label>
                 <input
                   type="text"
-                  placeholder="e.g. Car Maintenance"
+                  placeholder={
+                    addCategoryType === 'income'
+                      ? 'e.g. Freelance Consulting, Rental Income'
+                      : 'e.g. Car Maintenance, Insurance, Utilities'
+                  }
                   value={newCatName}
                   onChange={e => setNewCatName(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-white border border-[#E2DAD0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#B54838] text-[#2D2823]"
+                  className={`w-full px-3 py-2 text-xs bg-white border border-[#E2DAD0] rounded-xl focus:outline-none focus:ring-2 text-[#2D2823] ${
+                    addCategoryType === 'income' ? 'focus:ring-[#3D633C]' : 'focus:ring-[#B54838]'
+                  }`}
                   autoFocus
                 />
               </div>
               <div className="flex items-center justify-end gap-2 pt-2">
                 <button
                   type="button"
-                  onClick={() => setShowAddExpenseModal(false)}
-                  className="px-3 py-1.5 text-xs font-bold text-[#6B635A] hover:bg-[#EFE8DD] rounded-xl"
+                  onClick={() => setShowAddCategoryModal(false)}
+                  className="px-3 py-1.5 text-xs font-bold text-[#6B635A] hover:bg-[#EFE8DD] rounded-xl cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 text-xs font-bold bg-[#B54838] text-white hover:bg-[#9E3E30] rounded-xl shadow-xs"
+                  disabled={!newCatName.trim()}
+                  className={`px-4 py-1.5 text-xs font-bold text-white rounded-xl shadow-xs transition-all cursor-pointer disabled:opacity-50 ${
+                    addCategoryType === 'income'
+                      ? 'bg-[#3D633C] hover:bg-[#315030]'
+                      : 'bg-[#B54838] hover:bg-[#9E3E30]'
+                  }`}
                 >
-                  Save
+                  {addCategoryType === 'income' ? 'Add Inflow Stream' : 'Add Outflow Stream'}
                 </button>
               </div>
             </form>
